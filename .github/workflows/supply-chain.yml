@@ -35,7 +35,7 @@ jobs:
           cargo cyclonedx --format xml
           ls -la *.cdx.*
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-cyclonedx
           path: |
