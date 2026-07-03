@@ -1,0 +1,43 @@
+name: Supply Chain
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly re-audit so new advisories surface without a code change.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Vulnerability audit (RustSec)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-audit
+      - name: cargo audit
+        run: cargo audit
+
+  sbom:
+    name: Generate SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-cyclonedx
+      - name: Generate CycloneDX SBOM
+        run: |
+          cargo cyclonedx --format json
+          cargo cyclonedx --format xml
+          ls -la *.cdx.*
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: sbom-cyclonedx
+          path: |
+            *.cdx.json
+            *.cdx.xml

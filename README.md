@@ -119,7 +119,13 @@ driftguard run checks.yaml --host "deploy@$NEW_VM_IP" --accept-new-host-key
 
 ## How it's tested
 
-CI runs driftguard against itself three ways: the unit suite, the local integration job (checks against the CI runner), and a **container integration job** that builds an ubuntu+sshd+nginx target container, runs the full check suite against it *over SSH*, and then deliberately breaks the deployment to assert driftguard exits `1` on drift. See `tests/container/`.
+CI runs driftguard against itself three ways: the unit suite (mock-runner tests for every check type), the local integration job (checks against the CI runner), and a **container integration job** that builds an ubuntu+sshd+nginx target container, runs the full check suite against it *over SSH*, and then deliberately breaks the deployment to assert driftguard exits `1` on drift. See `tests/container/`.
+
+Quality gates on every push:
+
+- **Coverage** — `cargo llvm-cov` with a 70% line floor (currently ~76%); lcov report uploaded as an artifact
+- **Supply chain** — `cargo audit` against the RustSec advisory database (also weekly on a schedule), CycloneDX SBOM (JSON + XML) generated and uploaded as an artifact
+- **Dependabot** — weekly cargo and github-actions update PRs, minor/patch grouped
 
 ## Compatibility
 

@@ -7,6 +7,8 @@ mod package;
 mod port;
 mod process;
 mod service;
+#[cfg(test)]
+mod tests;
 
 use crate::config::CheckSpec;
 use crate::runner::Runner;
