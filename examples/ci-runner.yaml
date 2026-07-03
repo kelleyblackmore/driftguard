@@ -1,0 +1,41 @@
+---
+# Checks that pass on a stock GitHub Actions ubuntu runner.
+# CI dogfoods driftguard by running these against the runner itself.
+title: CI runner sanity checks
+
+checks:
+  - name: hosts file present and resolves localhost
+    type: file
+    path: /etc/hosts
+    exists: true
+    contains: localhost
+
+  - name: /etc is a directory
+    type: directory
+    path: /etc
+
+  - name: kernel is Linux
+    type: command
+    command: uname -s
+    exit_status: 0
+    stdout:
+      contains: Linux
+
+  - name: bash package installed
+    type: package
+    package: bash
+    installed: true
+
+  - name: init process running
+    type: process
+    process: systemd
+    running: true
+
+  - name: sample app config rendered correctly
+    type: config
+    path: examples/sample-config.json
+    format: json
+    has_key: service.enabled
+    has_value:
+      service.port: 8080
+      service.enabled: true

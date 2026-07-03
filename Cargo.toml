@@ -1,0 +1,23 @@
+[package]
+name = "driftguard"
+version = "0.1.0"
+edition = "2021"
+description = "Post-IaC server verification: after Terraform or Ansible runs, driftguard checks that the deployed configuration matches what you intended"
+license = "MIT"
+repository = "https://github.com/kelleyblackmore/driftguard"
+keywords = ["iac", "terraform", "ansible", "testing", "verification"]
+categories = ["command-line-utilities", "development-tools::testing"]
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+colored = "2"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+[profile.release]
+strip = true
+lto = true

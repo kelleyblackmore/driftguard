@@ -1,0 +1,40 @@
+---
+# Verify what an Ansible hardening/config playbook claims to have done.
+#
+#   ansible-playbook -i inventory site.yml
+#   driftguard run examples/post-ansible.yaml --host web1
+title: Ansible configuration verification
+
+checks:
+  - name: sshd config forbids root login
+    type: file
+    path: /etc/ssh/sshd_config
+    contains: "PermitRootLogin no"
+
+  - name: sshd config forbids password auth
+    type: file
+    path: /etc/ssh/sshd_config
+    contains: "PasswordAuthentication no"
+
+  - name: sshd running with expected permissions on config
+    type: file
+    path: /etc/ssh/sshd_config
+    permissions: "600"
+
+  - name: firewall service active
+    type: service
+    service: ufw
+    running: true
+
+  - name: templated app config has production values
+    type: config
+    path: /etc/myapp/settings.yaml
+    format: yaml
+    has_value:
+      environment: production
+      logging.level: info
+
+  - name: no stray debug service
+    type: service
+    service: debug-agent
+    running: false

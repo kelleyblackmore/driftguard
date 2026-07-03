@@ -1,0 +1,49 @@
+---
+# Verify a Terraform-provisioned web server.
+#
+#   terraform apply -auto-approve
+#   driftguard run examples/post-terraform.yaml \
+#     --host "admin@$(terraform output -raw public_ip)" \
+#     --var "APP_PORT=$(terraform output -raw app_port)"
+title: Terraform web server verification
+
+variables:
+  APP_PORT: 8080
+
+checks:
+  - name: cloud-init finished cleanly
+    type: command
+    command: cloud-init status --wait
+    exit_status: 0
+    stdout:
+      contains: "status: done"
+
+  - name: nginx installed
+    type: package
+    package: nginx
+    installed: true
+
+  - name: nginx running and enabled
+    type: service
+    service: nginx
+    running: true
+    enabled: true
+
+  - name: reverse proxy listening on 80
+    type: port
+    port: 80
+    protocol: tcp
+    listening: true
+
+  - name: app listening on its port
+    type: port
+    port: "{{ APP_PORT }}"
+    protocol: tcp
+    listening: true
+
+  - name: app healthy end-to-end
+    type: command
+    command: curl -fsS http://localhost:{{ APP_PORT }}/health
+    exit_status: 0
+    stdout:
+      contains: ok
