@@ -1,0 +1,71 @@
+---
+# Run over SSH against the tests/container target (see CI "container" job):
+#
+#   driftguard run tests/container/checks.yaml \
+#     --host driftguard@localhost -p 2222 -k <key> --accept-new-host-key
+#
+# Note: no systemd in the container, so workloads are asserted via
+# process/port checks rather than service checks.
+title: Container deployment verification (over SSH)
+
+variables:
+  APP_CONFIG: /etc/testapp/config.json
+
+checks:
+  - name: nginx package installed
+    type: package
+    package: nginx
+    installed: true
+
+  - name: nginx master process running
+    type: process
+    process: nginx
+    running: true
+    min_count: 1
+
+  - name: nginx listening on 80 inside the container
+    type: port
+    port: 80
+    protocol: tcp
+    listening: true
+
+  - name: sshd process running
+    type: process
+    process: sshd
+    running: true
+
+  - name: nginx config present and sane
+    type: file
+    path: /etc/nginx/nginx.conf
+    exists: true
+    contains: http
+
+  - name: shadow file locked down
+    type: file
+    path: /etc/shadow
+    permissions: "640"
+
+  - name: nginx binary reports a version
+    type: command
+    command: nginx -v
+    exit_status: 0
+    stderr:
+      contains: nginx version
+
+  - name: web root is a directory
+    type: directory
+    path: /var/www/html
+
+  - name: app config rendered with production values
+    type: config
+    path: "{{ APP_CONFIG }}"
+    format: json
+    has_key: service.enabled
+    has_value:
+      service.port: 8080
+      service.environment: production
+
+  - name: no forbidden debug tooling installed
+    type: package
+    package: gdb
+    installed: false

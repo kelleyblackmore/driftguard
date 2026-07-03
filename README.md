@@ -111,6 +111,16 @@ driftguard run checks.yaml --host "$(ansible-inventory --host web1 | jq -r .ansi
 
 Remote targets use the system OpenSSH client (`ssh` must be on PATH — standard on Linux, macOS, and Windows 10+). driftguard runs with `BatchMode=yes`, so key-based auth must be configured; it will fail fast rather than hang on a password prompt. `~/.ssh/config` aliases work as targets.
 
+Freshly provisioned hosts present host keys your CI runner has never seen. Pass `--accept-new-host-key` (OpenSSH `StrictHostKeyChecking=accept-new`) to trust a host's key on first contact while still rejecting *changed* keys:
+
+```bash
+driftguard run checks.yaml --host "deploy@$NEW_VM_IP" --accept-new-host-key
+```
+
+## How it's tested
+
+CI runs driftguard against itself three ways: the unit suite, the local integration job (checks against the CI runner), and a **container integration job** that builds an ubuntu+sshd+nginx target container, runs the full check suite against it *over SSH*, and then deliberately breaks the deployment to assert driftguard exits `1` on drift. See `tests/container/`.
+
 ## Compatibility
 
 driftguard reads [serverinspector](https://github.com/kelleyblackmore/ServerInspector)-style configs: the `tests:` alias and `environment.variables:` section are both accepted, so existing suites port over mostly unchanged.

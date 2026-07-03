@@ -63,3 +63,73 @@ jobs:
           name: driftguard checks
           path: results.xml
           reporter: java-junit
+
+  container:
+    name: Integration (container over SSH)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build driftguard
+        run: cargo build
+
+      - name: Generate SSH key
+        run: ssh-keygen -t ed25519 -N "" -f /tmp/dg_key
+
+      - name: Start target container
+        run: |
+          docker build -t dg-target tests/container
+          docker run -d --name target \
+            -p 2222:22 -p 8080:80 \
+            -e AUTHORIZED_KEY="$(cat /tmp/dg_key.pub)" \
+            dg-target
+
+      - name: Wait for sshd
+        run: |
+          for i in $(seq 1 30); do
+            if ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+                 -i /tmp/dg_key -p 2222 driftguard@localhost true 2>/dev/null; then
+              echo "sshd ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "sshd never became ready" >&2
+          docker logs target
+          exit 1
+
+      - name: Run driftguard against the container over SSH
+        run: |
+          ./target/debug/driftguard run tests/container/checks.yaml \
+            --host driftguard@localhost -p 2222 -k /tmp/dg_key \
+            --accept-new-host-key \
+            -o junit -f container-results.xml
+          cat container-results.xml
+
+      - name: Verify drift is detected (negative test)
+        run: |
+          # Break the deployment, then assert driftguard exits 1.
+          docker exec target rm /etc/testapp/config.json
+          if ./target/debug/driftguard run tests/container/checks.yaml \
+               --host driftguard@localhost -p 2222 -k /tmp/dg_key \
+               --accept-new-host-key; then
+            echo "expected driftguard to fail after config removal" >&2
+            exit 1
+          else
+            code=$?
+            [ "$code" -eq 1 ] || { echo "expected exit 1, got $code" >&2; exit 1; }
+            echo "drift correctly detected (exit 1)"
+          fi
+
+      - name: Publish container check results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: driftguard container checks
+          path: container-results.xml
+          reporter: java-junit
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs target

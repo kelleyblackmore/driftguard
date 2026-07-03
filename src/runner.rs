@@ -88,15 +88,25 @@ pub struct SshRunner {
     pub port: Option<u16>,
     pub key_file: Option<PathBuf>,
     pub connect_timeout_secs: u32,
+    /// Accept previously-unseen host keys (StrictHostKeyChecking=accept-new).
+    /// Freshly provisioned IaC hosts always present unknown host keys, which
+    /// BatchMode would otherwise reject.
+    pub accept_new_host_key: bool,
 }
 
 impl SshRunner {
-    pub fn new(target: &str, port: Option<u16>, key_file: Option<PathBuf>) -> Self {
+    pub fn new(
+        target: &str,
+        port: Option<u16>,
+        key_file: Option<PathBuf>,
+        accept_new_host_key: bool,
+    ) -> Self {
         Self {
             target: target.to_string(),
             port,
             key_file,
             connect_timeout_secs: 10,
+            accept_new_host_key,
         }
     }
 
@@ -108,6 +118,9 @@ impl SshRunner {
             .arg("BatchMode=yes")
             .arg("-o")
             .arg(format!("ConnectTimeout={}", self.connect_timeout_secs));
+        if self.accept_new_host_key {
+            cmd.arg("-o").arg("StrictHostKeyChecking=accept-new");
+        }
         if let Some(port) = self.port {
             cmd.arg("-p").arg(port.to_string());
         }
@@ -185,7 +198,7 @@ mod tests {
 
     #[test]
     fn ssh_command_includes_options() {
-        let runner = SshRunner::new("admin@example.com", Some(2222), None);
+        let runner = SshRunner::new("admin@example.com", Some(2222), None, false);
         let cmd = runner.ssh_command("uptime");
         let args: Vec<String> = cmd
             .get_args()
@@ -196,5 +209,17 @@ mod tests {
         assert!(args.contains(&"2222".to_string()));
         assert!(args.contains(&"admin@example.com".to_string()));
         assert!(args.contains(&"uptime".to_string()));
+        assert!(!args.contains(&"StrictHostKeyChecking=accept-new".to_string()));
+    }
+
+    #[test]
+    fn ssh_command_accept_new_host_key() {
+        let runner = SshRunner::new("admin@example.com", None, None, true);
+        let cmd = runner.ssh_command("uptime");
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(args.contains(&"StrictHostKeyChecking=accept-new".to_string()));
     }
 }

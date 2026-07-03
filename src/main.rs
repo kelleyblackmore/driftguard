@@ -39,6 +39,10 @@ enum Commands {
         /// SSH identity file
         #[arg(long, short)]
         key_file: Option<PathBuf>,
+        /// Accept previously-unseen SSH host keys, for freshly provisioned
+        /// hosts in CI (StrictHostKeyChecking=accept-new)
+        #[arg(long)]
+        accept_new_host_key: bool,
         /// Output format
         #[arg(long, short, default_value = "terminal", value_parser = ["terminal", "json", "junit"])]
         output_format: String,
@@ -84,6 +88,7 @@ fn run(cli: Cli) -> Result<i32> {
             host,
             port,
             key_file,
+            accept_new_host_key,
             output_format,
             output_file,
             vars,
@@ -93,7 +98,9 @@ fn run(cli: Cli) -> Result<i32> {
             let cfg = config::load(&config, &overrides)?;
 
             let runner: Box<dyn Runner> = match &host {
-                Some(target) => Box::new(SshRunner::new(target, port, key_file)),
+                Some(target) => {
+                    Box::new(SshRunner::new(target, port, key_file, accept_new_host_key))
+                }
                 None => Box::new(LocalRunner),
             };
 
